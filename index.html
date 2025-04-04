@@ -421,15 +421,24 @@
                     <div class="form-group">
                         <label for="banco">Banco</label>
                         <select id="banco" name="banco" required>
-                            <option value="">Selecione</option>
-                            <option value="001">Banco do Brasil</option>
-                            <option value="033">Santander</option>
-                            <option value="237">Bradesco</option>
-                            <option value="341">Itaú</option>
-                            <option value="104">Caixa Econômica</option>
-                            <option value="260">Nubank</option>
-                            <option value="077">Inter</option>
+                            <option value="">Selecione seu banco</option>
+                            <option value="001">001 - Banco do Brasil S.A.</option>
+                            <option value="033">033 - Banco Santander (Brasil) S.A.</option>
+                            <option value="237">237 - Banco Bradesco S.A.</option>
+                            <option value="341">341 - Banco Itaú S.A.</option>
+                            <option value="104">104 - Caixa Econômica Federal</option>
+                            <option value="260">260 - Nu Pagamentos S.A.</option>
+                            <option value="077">077 - Banco Inter S.A.</option>
+                            <option value="756">756 - Banco Cooperativo do Brasil S.A. - BANCOOB</option>
+                            <option value="748">748 - Banco Cooperativo Sicredi S.A.</option>
+                            <option value="000">000 - Outro Banco (especificar abaixo)</option>
+                            <!-- Lista completa de bancos aqui -->
                         </select>
+                    </div>
+                    
+                    <div class="form-group hidden" id="outroBancoGroup">
+                        <label for="outro_banco">Nome do Banco</label>
+                        <input type="text" id="outro_banco" name="outro_banco">
                     </div>
                     
                     <div class="form-group">
@@ -482,13 +491,16 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Controle de campos PJ/PF
+            // Elementos do formulário
+            const form = document.getElementById('afiliadoForm');
             const pessoaFisica = document.getElementById('pessoa_fisica');
             const pessoaJuridica = document.getElementById('pessoa_juridica');
             const cpfGroup = document.getElementById('cpfGroup');
             const cnpjGroup = document.getElementById('cnpjGroup');
             const ieGroup = document.getElementById('ieGroup');
             const contatoPJ = document.getElementById('contatoPJ');
+            const bancoSelect = document.getElementById('banco');
+            const outroBancoGroup = document.getElementById('outroBancoGroup');
             const declaracao = document.getElementById('declaracao');
             const submitButton = document.getElementById('submitButton');
             const loadingIndicator = document.getElementById('loadingIndicator');
@@ -496,37 +508,46 @@
             const errorMessage = document.getElementById('errorMessage');
             const captchaError = document.getElementById('captchaError');
             
+            // Função para alternar entre PF e PJ - CORREÇÃO DEFINITIVA
             function togglePJPF() {
-                if (pessoaFisica.checked) {
+                const isPF = pessoaFisica.checked;
+                
+                // Alternar visibilidade dos grupos
+                if (isPF) {
                     cpfGroup.classList.remove('hidden');
                     cnpjGroup.classList.add('hidden');
                     ieGroup.classList.add('hidden');
                     contatoPJ.classList.add('hidden');
-                    
-                    // Campos obrigatórios
-                    document.getElementById('cpf').required = true;
-                    document.getElementById('cnpj').required = false;
-                    document.getElementById('inscricao_estadual').required = false;
-                    document.getElementById('contato_nome').required = false;
-                    document.getElementById('contato_cpf').required = false;
-                    document.getElementById('contato_email').required = false;
-                    document.getElementById('contato_whatsapp').required = false;
                 } else {
                     cpfGroup.classList.add('hidden');
                     cnpjGroup.classList.remove('hidden');
                     ieGroup.classList.remove('hidden');
                     contatoPJ.classList.remove('hidden');
-                    
-                    // Campos obrigatórios
-                    document.getElementById('cpf').required = false;
-                    document.getElementById('cnpj').required = true;
-                    document.getElementById('inscricao_estadual').required = true;
-                    document.getElementById('contato_nome').required = true;
-                    document.getElementById('contato_cpf').required = true;
-                    document.getElementById('contato_email').required = true;
-                    document.getElementById('contato_whatsapp').required = true;
                 }
+                
+                // Gerenciar campos obrigatórios
+                document.getElementById('cpf').required = isPF;
+                document.getElementById('cnpj').required = !isPF;
+                document.getElementById('inscricao_estadual').required = !isPF;
+                
+                // Campos de contato PJ
+                const contatoFields = ['contato_nome', 'contato_cpf', 'contato_email', 'contato_whatsapp'];
+                contatoFields.forEach(field => {
+                    document.getElementById(field).required = !isPF;
+                });
             }
+            
+            // Event listeners para alternância PF/PJ
+            pessoaFisica.addEventListener('change', togglePJPF);
+            pessoaJuridica.addEventListener('change', togglePJPF);
+            
+            // Controle para "Outro Banco"
+            bancoSelect.addEventListener('change', function() {
+                outroBancoGroup.classList.toggle('hidden', this.value !== '000');
+                if (this.value !== '000') {
+                    document.getElementById('outro_banco').value = '';
+                }
+            });
             
             // Autocompletar CEP
             document.getElementById('cep').addEventListener('blur', function() {
@@ -548,18 +569,17 @@
                     .catch(error => console.error('Erro ao buscar CEP:', error));
             });
             
-            // Habilitar/desabilitar botão de envio conforme declaração
+            // Habilitar/desabilitar botão conforme declaração
             declaracao.addEventListener('change', function() {
                 submitButton.disabled = !this.checked;
             });
             
-            // Envio do formulário para o Google Sheets
-            document.getElementById('afiliadoForm').addEventListener('submit', function(e) {
+            // Envio do formulário
+            form.addEventListener('submit', function(e) {
                 e.preventDefault();
                 
                 // Verificar CAPTCHA
-                const captchaResponse = grecaptcha.getResponse();
-                if (!captchaResponse) {
+                if (!grecaptcha.getResponse()) {
                     captchaError.style.display = 'block';
                     return;
                 }
@@ -577,7 +597,12 @@
                 
                 // Adicionar data/hora do cadastro e resposta do CAPTCHA
                 data.data_cadastro = new Date().toISOString();
-                data.captcha_response = captchaResponse;
+                data.captcha_response = grecaptcha.getResponse();
+                
+                // Se selecionou "Outro Banco", usar esse valor
+                if (data.banco === '000' && data.outro_banco) {
+                    data.banco = data.outro_banco;
+                }
                 
                 // Enviar para o Google Sheets via Apps Script
                 const scriptURL = 'SUA_URL_DO_APPS_SCRIPT_AQUI';
@@ -594,10 +619,11 @@
                 .then(() => {
                     // Sucesso
                     successMessage.style.display = 'block';
-                    document.getElementById('afiliadoForm').reset();
+                    form.reset();
                     submitButton.disabled = true;
                     declaracao.checked = false;
                     grecaptcha.reset();
+                    togglePJPF(); // Resetar a visualização dos campos
                 })
                 .catch(error => {
                     // Erro
@@ -611,7 +637,7 @@
             });
             
             // Inicialização
-            togglePJPF();
+            togglePJPF(); // Garante que os campos corretos sejam mostrados no carregamento
             submitButton.disabled = true; // Inicia desabilitado até marcar a declaração
         });
     </script>
