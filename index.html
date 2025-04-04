@@ -212,7 +212,20 @@
             Ocorreu um erro ao enviar o formulário. Por favor, tente novamente.
         </div>
         
-        <form id="afiliadoForm">
+        <!-- FORMULÁRIO NETLIFY (MESMO LAYOUT) -->
+        <form 
+            id="afiliadoForm" 
+            name="cadastro-afiliado" 
+            method="POST" 
+            netlify
+            netlify-honeypot="bot-field"
+        >
+            <!-- Campos obrigatórios do Netlify -->
+            <input type="hidden" name="form-name" value="cadastro-afiliado">
+            <p class="hidden">
+                <label>Não preencha este campo: <input name="bot-field"></label>
+            </p>
+
             <!-- Seção Tipo de Afiliado -->
             <div class="form-section">
                 <h2 class="section-title">Informações Básicas</h2>
@@ -461,10 +474,6 @@
                 </div>
             </div>
             
-            <div class="loading" id="loadingIndicator">
-                Enviando dados, por favor aguarde...
-            </div>
-            
             <button type="submit" id="submitButton">CADASTRAR</button>
         </form>
     </div>
@@ -483,7 +492,6 @@
             const outroBancoGroup = document.getElementById('outroBancoGroup');
             const declaracao = document.getElementById('declaracao');
             const submitButton = document.getElementById('submitButton');
-            const loadingIndicator = document.getElementById('loadingIndicator');
             const successMessage = document.getElementById('successMessage');
             const errorMessage = document.getElementById('errorMessage');
             
@@ -553,69 +561,15 @@
                 submitButton.disabled = !this.checked;
             });
             
-            // Função para enviar os dados do formulário
-            function submitFormData(data) {
-                const scriptURL = 'SUA_URL_DO_APPS_SCRIPT_AQUI';
-                
-                return fetch(scriptURL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(data)
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Erro ao enviar formulário');
-                    }
-                    return response;
-                });
-            }
-            
-            // Envio do formulário
-            form.addEventListener('submit', function(e) {
-                e.preventDefault();
-                
-                // Resetar mensagens
-                successMessage.style.display = 'none';
-                errorMessage.style.display = 'none';
-                
-                // Mostrar indicador de carregamento
-                loadingIndicator.style.display = 'block';
-                submitButton.disabled = true;
-                
-                // Coletar dados do formulário
-                const formData = new FormData(this);
-                const data = Object.fromEntries(formData.entries());
-                
-                // Adicionar data/hora do cadastro
-                data.data_cadastro = new Date().toISOString();
-                
-                // Se selecionou "Outro Banco", usar esse valor
-                if (data.banco === '000' && data.outro_banco) {
-                    data.banco = data.outro_banco;
-                }
-                
-                // Enviar os dados do formulário
-                submitFormData(data)
-                    .then(() => {
-                        // Sucesso
-                        successMessage.style.display = 'block';
-                        form.reset();
-                        submitButton.disabled = true;
-                        declaracao.checked = false;
-                        togglePJPF();
-                    })
-                    .catch(error => {
-                        // Erro
-                        console.error('Erro:', error);
-                        errorMessage.style.display = 'block';
-                        errorMessage.textContent = error.message || 'Ocorreu um erro ao enviar o formulário. Por favor, tente novamente.';
-                    })
-                    .finally(() => {
-                        loadingIndicator.style.display = 'none';
-                        submitButton.disabled = false;
-                    });
+            // Feedback visual ao enviar
+            form.addEventListener('submit', function() {
+                setTimeout(() => {
+                    successMessage.style.display = 'block';
+                    form.reset();
+                    submitButton.disabled = true;
+                    declaracao.checked = false;
+                    togglePJPF(); // Resetar a visualização dos campos
+                }, 100);
             });
             
             // Inicialização
