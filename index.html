@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cadastro de Afiliado - Beneplaca</title>
-    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
     <style>
         :root {
             --primary: #4c1923;
@@ -194,20 +193,6 @@
         .error-message {
             background-color: #f8d7da;
             color: #721c24;
-        }
-        
-        .g-recaptcha {
-            margin: 20px 0;
-            display: flex;
-            justify-content: center;
-        }
-        
-        .captcha-error {
-            color: #dc3545;
-            font-size: 0.8rem;
-            text-align: center;
-            margin-top: 5px;
-            display: none;
         }
     </style>
 </head>
@@ -432,7 +417,6 @@
                             <option value="756">756 - Banco Cooperativo do Brasil S.A. - BANCOOB</option>
                             <option value="748">748 - Banco Cooperativo Sicredi S.A.</option>
                             <option value="000">000 - Outro Banco (especificar abaixo)</option>
-                            <!-- Lista completa de bancos aqui -->
                         </select>
                     </div>
                     
@@ -477,10 +461,6 @@
                 </div>
             </div>
             
-            <!-- CAPTCHA -->
-            <div class="g-recaptcha" data-sitekey="SUA_CHAVE_DO_SITE_RECAPTCHA"></div>
-            <div class="captcha-error" id="captchaError">Por favor, complete o CAPTCHA</div>
-            
             <div class="loading" id="loadingIndicator">
                 Enviando dados, por favor aguarde...
             </div>
@@ -506,9 +486,8 @@
             const loadingIndicator = document.getElementById('loadingIndicator');
             const successMessage = document.getElementById('successMessage');
             const errorMessage = document.getElementById('errorMessage');
-            const captchaError = document.getElementById('captchaError');
             
-            // Função para alternar entre PF e PJ - CORREÇÃO DEFINITIVA
+            // Função para alternar entre PF e PJ
             function togglePJPF() {
                 const isPF = pessoaFisica.checked;
                 
@@ -574,66 +553,69 @@
                 submitButton.disabled = !this.checked;
             });
             
+            // Função para enviar os dados do formulário
+            function submitFormData(data) {
+                const scriptURL = 'SUA_URL_DO_APPS_SCRIPT_AQUI';
+                
+                return fetch(scriptURL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Erro ao enviar formulário');
+                    }
+                    return response;
+                });
+            }
+            
             // Envio do formulário
             form.addEventListener('submit', function(e) {
                 e.preventDefault();
                 
-                // Verificar CAPTCHA
-                if (!grecaptcha.getResponse()) {
-                    captchaError.style.display = 'block';
-                    return;
-                }
-                captchaError.style.display = 'none';
+                // Resetar mensagens
+                successMessage.style.display = 'none';
+                errorMessage.style.display = 'none';
                 
                 // Mostrar indicador de carregamento
                 loadingIndicator.style.display = 'block';
                 submitButton.disabled = true;
-                successMessage.style.display = 'none';
-                errorMessage.style.display = 'none';
                 
                 // Coletar dados do formulário
                 const formData = new FormData(this);
                 const data = Object.fromEntries(formData.entries());
                 
-                // Adicionar data/hora do cadastro e resposta do CAPTCHA
+                // Adicionar data/hora do cadastro
                 data.data_cadastro = new Date().toISOString();
-                data.captcha_response = grecaptcha.getResponse();
                 
                 // Se selecionou "Outro Banco", usar esse valor
                 if (data.banco === '000' && data.outro_banco) {
                     data.banco = data.outro_banco;
                 }
                 
-                // Enviar para o Google Sheets via Apps Script
-                const scriptURL = 'SUA_URL_DO_APPS_SCRIPT_AQUI';
-                
-                fetch(scriptURL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    cache: 'no-cache',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(data)
-                })
-                .then(() => {
-                    // Sucesso
-                    successMessage.style.display = 'block';
-                    form.reset();
-                    submitButton.disabled = true;
-                    declaracao.checked = false;
-                    grecaptcha.reset();
-                    togglePJPF(); // Resetar a visualização dos campos
-                })
-                .catch(error => {
-                    // Erro
-                    console.error('Erro:', error);
-                    errorMessage.style.display = 'block';
-                })
-                .finally(() => {
-                    loadingIndicator.style.display = 'none';
-                    submitButton.disabled = false;
-                });
+                // Enviar os dados do formulário
+                submitFormData(data)
+                    .then(() => {
+                        // Sucesso
+                        successMessage.style.display = 'block';
+                        form.reset();
+                        submitButton.disabled = true;
+                        declaracao.checked = false;
+                        togglePJPF();
+                    })
+                    .catch(error => {
+                        // Erro
+                        console.error('Erro:', error);
+                        errorMessage.style.display = 'block';
+                        errorMessage.textContent = error.message || 'Ocorreu um erro ao enviar o formulário. Por favor, tente novamente.';
+                    })
+                    .finally(() => {
+                        loadingIndicator.style.display = 'none';
+                        submitButton.disabled = false;
+                    });
             });
             
             // Inicialização
